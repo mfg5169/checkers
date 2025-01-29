@@ -29,7 +29,6 @@ class Board:
                     else:
                         self.board[row].append(0)
                 else:
-
                     self.board[row].append(0)
 
     def create_specific(self, board_config):

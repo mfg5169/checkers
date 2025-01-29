@@ -1,5 +1,5 @@
 from board import Board
-from constants import PLAYER1_PIECE_COLOR, PLAYER2_PIECE_COLOR
+from constants import PLAYER1_PIECE_COLOR, PLAYER2_PIECE_COLOR, ROWS, COLS
 from game import Game
 import board_configs
 import random
@@ -8,6 +8,8 @@ import unittest
 
 # TO DO: Implement this function. The four lines currently implemented including the return are in place to make the
 # gameplay visualization work. Replace all of it with your own code for the function.
+
+
 def minimax_alpha_beta(board, depth, alpha, beta, max_player, game, eval_params=None):
     """
         Executes the Minimax algorithm with Alpha-Beta pruning to determine the optimal move in a two-player game.
@@ -27,11 +29,124 @@ def minimax_alpha_beta(board, depth, alpha, beta, max_player, game, eval_params=
                 - best_move (Board): The board state after the best move
         """
 
-    score = 1
-    moves = game.generate_all_moves(board, PLAYER2_PIECE_COLOR)
-    best_move = random.choice(moves)
 
-    return score, best_move
+
+    player = PLAYER2_PIECE_COLOR if max_player else PLAYER1_PIECE_COLOR
+
+    moves = game.generate_all_moves(board, player)
+    if depth == 0:
+        return (evaluate(board, game, *eval_params) if eval_params else evaluate(board,game)), board
+    
+    best_move, best_score = None, float('-inf') if max_player else float('inf')
+    
+  
+    
+
+    #comparator = max if max_player else min
+
+    #print(f"COUNTMOVES::{len(moves)}::DEPTH::{depth}")
+    for move in moves:
+        #print(f"DEPTH::{depth}::INDEX::{index}")
+
+
+        scr, _ = minimax_alpha_beta(move, depth-1, alpha, beta, not max_player, game, eval_params)
+        #proj_score = evaluate(move, game, eval_params)
+        
+        #print(f"MINIMAX::/ SCORE: {scr}::{max_player}:::{depth}:: ")
+
+        #brd.print_board_config(brd.to_board_config())
+        #best_move, best_score = comparator((best_score, best_move), (scr, brd))
+        if max_player:
+            if scr > best_score:
+                best_move, best_score = move, scr
+
+            #best_move.print_board_config(best_move.to_board_config())
+            alpha = max(best_score, alpha)
+            if beta <= alpha:
+                break
+        
+        elif not max_player:
+
+            if scr < best_score:
+                best_move, best_score = move, scr
+
+            beta = min(best_score, beta)
+            if alpha >= beta:
+                break
+    
+    if best_move is None:
+        #return board
+    #     print('none')
+         best_move = board
+         best_score = float('-inf') if max_player else float('inf')
+
+    #     return (evaluate(board, game, *eval_params) if eval_params else evaluate(board,game)), best_move
+
+    return best_score, best_move
+
+def find_moves(board, piece):
+
+    possible = []
+    
+    incr_moves = [(piece.row + 1, piece.col + 1), (piece.row + 1, piece.col - 1)]
+
+    decr_moves = [(piece.row - 1, piece.col + 1), (piece.row - 1, piece.col - 1)]
+
+
+    king_moves = incr_moves + decr_moves
+
+    if piece.king:
+        moves = king_moves
+    else:
+        moves = incr_moves if piece.color == PLAYER2_PIECE_COLOR else decr_moves
+
+    opp_color = PLAYER2_PIECE_COLOR if piece.color == PLAYER1_PIECE_COLOR else PLAYER1_PIECE_COLOR
+    #print(f"FIND MOVES///:king:{piece.king}:", end = ' ')
+    #print(moves)
+    for move in moves:
+
+        if not move[0] < ROWS or not move[1] < COLS or not move[0] >= 0 or not move[1] >= 0:
+            #print(f"FIND MOVES///:OUT OF BOUNDS::: PIECE AT point({piece.row}, {piece.col}) couln't move to {move[0]}, {move[1]}  ")
+            continue
+
+
+
+        spot = board.get_piece(move[0], move[1])
+        #print(f"FIND MOVES///:SPOT VALUE:::  ", end = ' ')
+        #print(f"SPOT:: {str(spot)}, OPP COLOR:: {str(opp_color)}, PIECE COLOR: {piece.color}")
+        #print(spot == 0)
+        #print(f"spot type {type(spot)} vs opp type: {type(opp_color)}")
+        #if hasattr(spot, 'color'):
+            #print("same type:")
+            #print(spot.color == opp_color)
+
+
+        if spot == 0:
+            #print(f"FIND MOVES///:NOT OCCUPPIED::: PIECE AT point({piece.row}, {piece.col}) can move to {move[0]}, {move[1]}  ")
+
+
+            possible.append(move)
+            continue
+        elif spot.color == opp_color:
+            #print(f"FIND MOVES///:OPP COLOR::: PIECE AT point({piece.row}, {piece.col}) couldn't move to {move[0]}, {move[1]}  ")
+
+            row_incr =  1 if piece.row < move[0] else -1
+            col_incr =  1 if piece.col < move[1] else -1
+
+            new_mv = (move[0] + row_incr, move[1] + col_incr)
+
+            #print(f"FIND MOVES///:OPP COLOR::: try to go to {new_mv[0]}, {new_mv[1]}  ")
+
+            if not new_mv[0] < ROWS or not new_mv[1] < COLS or not new_mv[0] >= 0 or not new_mv[1] >= 0:
+                continue
+            #might return out of bounds
+            if board.get_piece(new_mv[0], new_mv[1]) == 0:
+                #print(f"FIND MOVES///:CAPTURE::: PIECE AT point({piece.row}, {piece.col}) can to {move[0]}, {move[1]}")
+
+                possible.append(new_mv)
+        #print('=' * 100)
+
+    return possible
 
 def evaluate(board, game, pieces_weight=1.0, kings_weight=1.0, moves_weight=0.0, opportunities_weight=0.0, king_hopefuls_weight=0.0):
     """
@@ -66,12 +181,17 @@ def evaluate(board, game, pieces_weight=1.0, kings_weight=1.0, moves_weight=0.0,
     p1_num_pieces, p1_num_kings, p1_num_moves, p1_num_opportunities, p1_num_king_hopefuls = counts(board, game, PLAYER1_PIECE_COLOR)
     p2_num_pieces, p2_num_kings, p2_num_moves, p2_num_opportunities, p2_num_king_hopefuls = counts(board, game, PLAYER2_PIECE_COLOR)
 
+    # print('EVAL: ' + '='*100)
+    # print(f'p1: {p1_num_pieces}')
+    # print(f'p2: {p2_num_pieces}')
+ 
+
     pieces_diff = p2_num_pieces - p1_num_pieces
     kings_diff = p2_num_kings - p1_num_kings
     moves_diff = p2_num_moves - p1_num_moves
     opportunities_diff = p2_num_opportunities - p1_num_opportunities
     king_hopefuls_diff = p2_num_king_hopefuls - p1_num_king_hopefuls
-
+    #print(pieces_weight)
     score = (pieces_diff * pieces_weight +
              kings_diff * kings_weight +
              moves_diff * moves_weight +
@@ -99,7 +219,42 @@ def counts(board, game, color):
         - num_king_hopefuls (int): The total number of moves that lead to king promotions for the specified color.
     """
 
-    pass
+    num_pieces = num_kings = num_moves = num_opportunitites = num_king_hopefuls = 0
+    for i in range(ROWS):
+        for j in range(COLS):
+            #print(f"COUNTS//: CHECKING POINT::: {i}, {j}")
+            piece = board.get_piece(i, j)
+            #print('COUNTS//: PIECE:::', end=' ')
+            #print(piece)
+            # if hasattr(piece, 'color'):
+            #     print('COUNTS//: PIECE COLOR:::', end = ' ')
+            #     print(piece.color)
+            #     print(f"COLOR// COMPARING THE COLORS: {str(piece.color)} vs {str(color)}")
+            #     print(piece.color == color)
+
+            if piece != 0 and piece.color == color:
+                #print("DID ENTER")
+                num_pieces += 1
+                if piece.king:
+                    num_kings += 1
+
+                moves = find_moves(board, piece)
+                num_moves += len(moves)
+                for move in moves:
+
+                    #print(f"COUNTS//:for move in moves::: PIECE AT point({piece.row}, {piece.col}) to ({move[0]}, {move[1]})")
+                    if abs(move[0] - i) == 2:
+                        #print(f"JUMP::: PIECE AT point({piece.row}, {piece.col}) captured a piece and is at {move[0]}, {move[1]}  ")
+
+                        num_opportunitites += 1
+                    #else:
+                        #print(f"NOTHING::: PIECE AT point({piece.row}, {piece.col}) to {move[0]}, {move[1]}  isn't a capture")
+
+                    if not piece.king and game.check_king_hopeful(piece,  move[0], piece.row, piece.col ):
+                        num_king_hopefuls += 1
+                
+    #print('',num_pieces, num_kings, num_moves, num_opportunitites, num_king_hopefuls )
+    return num_pieces, num_kings, num_moves, num_opportunitites, num_king_hopefuls 
 
 def compare_boards(board1, board2):
     """
@@ -156,11 +311,13 @@ class AiTest(unittest.TestCase):
             move_counts  = [[8, 17], [10, 14], [7, 11], [0, 12], [1, 12], [0, 12]]
             opportunity_counts  = [[3, 4], [4, 3], [1, 3], [0, 0], [1, 0], [0, 1]]
             king_hopeful_counts  = [[0, 0], [1, 0], [1, 0], [0, 2], [0, 2], [0, 2]]
+            print("CONFIG:" + '='*30)
+            board.print_board_config(board.to_board_config())
 
             for c in range(2):
+
                 color = colors[c]
                 num_pieces, num_kings, num_moves, num_opportunities, num_king_hopefuls = counts(board, game, color)
-
                 self.assertEqual(num_pieces, piece_counts[b][c])
                 self.assertEqual(num_kings, king_counts[b][c])
                 self.assertEqual(num_moves, move_counts[b][c])
@@ -227,6 +384,7 @@ class AiTest(unittest.TestCase):
         game = Game()
         board = Board()
 
+
         value, new_board = minimax_alpha_beta(board, 2, float('-inf'), float('inf'), True, game)
 
         true_board = Board(board_configs.board_config14)
@@ -290,6 +448,7 @@ class AiTest(unittest.TestCase):
 
         true_board = Board(board_configs.board_config19)
 
+ 
         self.assertTrue(compare_boards(new_board, true_board))
 
     def test_minimax_alpha_beta_8(self):
@@ -313,7 +472,13 @@ class AiTest(unittest.TestCase):
         value, new_board = minimax_alpha_beta(board, 3, float('-inf'), float('inf'), True, game, eval_params)
 
         true_board = Board(board_configs.board_config21)
-
+        
+        print("START BOARD:" + '='*100)
+        board.print_board_config(board.to_board_config())
+        print("NEW BOARD:" + '='*100)   
+        new_board.print_board_config(new_board.to_board_config())
+        print("TRUE BOARD:" + '='*100)
+        true_board.print_board_config(true_board.to_board_config())
         self.assertTrue(compare_boards(new_board, true_board))
 
     def test_minimax_alpha_beta_10(self):
@@ -323,9 +488,16 @@ class AiTest(unittest.TestCase):
 
         eval_params = (1.0, 1.0, 0.5, 0.5, 0.25)
         value, new_board = minimax_alpha_beta(board, 3, float('-inf'), float('inf'), True, game, eval_params)
+        
 
         true_board = Board(board_configs.board_config22)
-
+        
+        print("START BOARD:" + '='*100)
+        board.print_board_config(board.to_board_config())
+        print("NEW BOARD:" + '='*100)   
+        new_board.print_board_config(new_board.to_board_config())
+        print("TRUE BOARD:" + '='*100)
+        true_board.print_board_config(true_board.to_board_config())
         self.assertTrue(compare_boards(new_board, true_board))
 
     def test_minimax_alpha_beta_11(self):
@@ -399,3 +571,40 @@ class AiTest(unittest.TestCase):
         true_board = Board(board_configs.board_config28)
 
         self.assertTrue(compare_boards(new_board, true_board))
+
+
+tester = AiTest()
+
+# tester.test_minimax_alpha_beta_1()
+# print("TEST 1 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_2()
+# print("TEST 2 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_3()
+# print("TEST 3 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_4()
+# print("TEST 4 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_5()
+# print("TEST 5 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_6()
+# print("TEST 6 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_7()
+# print("TEST 7 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_8()
+# print("TEST 8 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_9()
+# print("TEST 9 PASSED: ++++++++++++++++++++++++++++++")
+tester.test_minimax_alpha_beta_10()
+print("TEST 10 PASSED: ++++++++++++++++++++++++++++++")
+tester.test_minimax_alpha_beta_11()
+print("TEST 11 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_12()
+# print("TEST 12 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_13()
+# print("TEST 13 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_14()
+# print("TEST 14 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_15()
+# print("TEST 15 PASSED: ++++++++++++++++++++++++++++++")
+# tester.test_minimax_alpha_beta_16()
+# print("TEST 16 PASSED: ++++++++++++++++++++++++++++++")
+
